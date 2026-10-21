@@ -1,0 +1,44 @@
+################################################################################
+# Y-Branch Splitter S-Parameter Analysis & Insertion Loss Script
+# Student: Yamin Yee
+# Assignment: Lab2
+# Description: Extracts TE and TM mode S-parameters from sweep results.
+#              Calculates insertion loss(IL) in dB, and generates sepctral
+#              transmission and loss plots across wavelength.
+#################################################################################
+
+# Load S-parameter sweep results from workspace
+S = getsweepresult("s-parameter sweep", "S parameters");
+
+# Extract transmission power for TE and TM mode
+# Mode 1 = Fundamental TE mode | Mode 2 = Fundamental TM mode
+S21_TE = pinch(abs(S.S31)^2);   # Output Port 2 TE power transmission
+S31_TE = pinch(abs(S.S51)^2);   # Ouput Port 3 TE power transmission
+S21_TM = pinch(abs(S.S42)^2);   # Output Port 2 TM power transmission
+S31_TM = pinch(abs(S.S62)^2);   # Output Port 3 TM power transmission
+lambda = S.lambda; # Extracted wavelengyth array
+
+# Compute Insertion Loss (IL) in dB for each brach & time
+Pin = ones(length(lambda), 1);             # Normalized input power array
+IL1_TE = 10*log10(Pin/S21_TE);  # Insertion Loss(dB) Port2 TE
+IL2_TE = 10*log10(Pin/S31_TE);  # Insertion Loss(dB) Port3 TE 
+IL1_TM = 10*log10(Pin/S21_TM);  # Insertion Loss(dB) Port2 TM
+IL2_TM = 10*log10(Pin/S31_TM);  # Insertion Loss(dB) Port3 TM
+
+# Plot Spectral Insertion Loss(dB) vs Wavelength(um)
+plot(lambda*1e6, IL1_TE, "lambda (um)", "Insertion loss (dB)", "","linewidth = 5, pen = --");
+holdon;
+plot(lambda*1e6, IL2_TE, "lambda (um)", "Insertion loss (dB)", "","linewidth = 5, pen = -.");
+plot(lambda*1e6, IL1_TM, "lambda (um)", "Insertion loss (dB)", "","linewidth = 5, pen = --, color = pink");
+plot(lambda*1e6, IL2_TM, "lambda (um)", "Insertion loss (dB)", "","linewidth = 5, pen = -., color = black");
+holdoff;
+legend("IL port2 TE", "IL port3 TE", "IL port2 TM", "IL port3 TM");
+
+# Plot Normalized Power Transmission Spectra
+plot(lambda*1e6, S21_TE, "lambda (um)", "Normalized power transmission", "","linewidth = 5, pen = --");
+holdon;
+plot(lambda*1e6, S31_TE, "lambda (um)", "Normalized power transmission", "","linewidth = 5, pen = -.");
+plot(lambda*1e6, S21_TM, "lambda (um)", "Normalized power transmission", "","linewidth = 5, pen = --, color = pink");
+plot(lambda*1e6, S31_TM, "lambda (um)", "Normalized power transmission", "","linewidth = 5, pen = -., color = black");
+holdoff;
+legend("S21 TE (abs^2)", "S31 TE (abs^2)", "S21 TM (abs^2)", "S31 TM (abs^2)");

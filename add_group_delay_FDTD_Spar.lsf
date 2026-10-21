@@ -1,0 +1,90 @@
+infile = "y_branch.dat"; # name of the text file with S-parameter in regular format
+outfile = "y_branch_gd.dat"; # name of the text file with S-parameter in group delay format
+
+reinterpolate_data = false; # set to true for reinterpolating the data for the number of frequency points specified by target_samples below
+target_samples = 25;
+
+create_plots = true; # set to true for showing plots of the S parameters for verification.
+
+#############################################################################
+
+dummyfile = "dummy.txt";
+
+S = read(infile,1e8);
+if(fileexists(outfile)) { rm(outfile); }
+
+for(pos=findstring(S,"]"); pos != -1; pos = findstring(S,"]")){
+    ?substring(S,1,pos);
+    write(outfile,substring(S,1,pos));
+    S = substring(S,pos+2);
+}
+
+max_iterations = 1000;
+
+for(el_counter = 0; length(S)>2; el_counter= el_counter + 1) {
+    if(el_counter > max_iterations) { break; }
+
+    pos = findstring(S,")");
+    header_string_original = substring(S,1,pos);
+    S = substring(S,pos+1);
+
+    pos = findstring(S,"(");
+    pos2 = findstring(S,",");
+    len = str2num(substring(S,pos+1,pos2-pos-1));
+
+    pos = findstring(S,")");
+    S = substring(S,pos+1);
+
+    pos = findstring(S,"(");
+    if(pos == -1) { pos = length(S); }
+
+    if(fileexists(dummyfile)) { rm(dummyfile); }
+    write(dummyfile,substring(S,1,pos-1));
+    M = readdata(dummyfile);
+    S = substring(S,pos);
+
+    f = pinch(M,2,1);
+    amp = pinch(M,2,2);
+    ph = pinch(M,2,3);
+    if(reinterpolate_data) {
+        f2 = linspace(f(1),f(end),target_samples);
+        amp2 = interp(amp,f,f2);
+        ph2 = interp(ph,f,f2);
+    } else {
+        f2 = f;
+        amp2 = amp;
+        ph2 = ph;
+    }
+    fcenter = 0.5*(max(f2)+min(f2));
+    pp = polyfit(f2-fcenter,ph2,1);
+    group_delay = pp(2)/(2*pi);
+
+    if(group_delay < 0) {
+        ?"****************** warning, found group delay < 0";
+        group_delay = 0; #will mean data is unchanged
+    }
+
+    format long;
+    ?header_string = replacestring(header_string_original,")",","+num2str(group_delay)+")");
+
+    format short;
+    write(outfile,header_string);
+    write(outfile,"("+num2str(length(f2)) + ",3)");
+    format long;
+    ph3 = ph2 - (f2-fcenter)*(2*pi*group_delay);
+    fpos = find(f2,fcenter);
+    ph3 = ph3 - 2*pi*floor(ph3(fpos)/(2*pi));
+
+    write(outfile,num2str([f2,amp2,ph3]));
+    format short;
+
+    if(create_plots){
+        plotxy(f/1e12,amp,f2/1e12,amp2,"frequency (THz)", "|S|", header_string_original);
+        legend("original","with group delay");
+        plotxy(f/1e12,ph/(2*pi),f2/1e12,ph3/(2*pi),"frequency (THz)", "angle(S) [units of 2 pi]", header_string_original);
+        legend("original","with group delay");
+    }
+}
+
+?"converted " + num2str(el_counter) + " elements of the S matrix";
+?"What is left at end of file is: " + endl + S;
